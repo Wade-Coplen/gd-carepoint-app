@@ -1,4 +1,4 @@
-const STORAGE_KEY = "gd-carepoint-app-state";
+const STORAGE_KEY = "edaware-app-state";
 
 const defaultState = {
   selectedPatientId: null,

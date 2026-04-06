@@ -1,6 +1,6 @@
-# GD CAREpoint App
+# EDAware App
 
-Working MVP application repo for a CAREpoint-inspired hospital and EMS coordination platform.
+Working MVP application repo for EDAware, a hospital and EMS coordination platform.
 
 ## Current MVP
 
