@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GD CAREpoint App</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <p class="brand-kicker">Creator MVP</p>
+          <h1>GD CAREpoint</h1>
+          <p class="brand-copy">Hospital and EMS coordination prototype</p>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-link is-active" data-view="dashboard">Dashboard</button>
+          <button class="nav-link" data-view="intake">EMS Intake</button>
+          <button class="nav-link" data-view="alerts">Alerts</button>
+          <button class="nav-link" data-view="board">Arrival Board</button>
+          <button class="nav-link" data-view="admin">Admin</button>
+        </nav>
+
+        <section class="sidebar-card">
+          <h2>Site Snapshot</h2>
+          <dl id="siteSnapshot" class="stats-grid"></dl>
+        </section>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Prototype workspace</p>
+            <h2 id="viewTitle">Dashboard</h2>
+          </div>
+          <div class="topbar-actions">
+            <button id="seedDemoData" class="ghost-button">Reset Demo Data</button>
+            <button id="clearData" class="danger-button">Clear Stored Data</button>
+          </div>
+        </header>
+
+        <section class="view is-visible" id="view-dashboard">
+          <div class="hero-card">
+            <div>
+              <p class="eyebrow">Status</p>
+              <h3>Incoming coordination at a glance</h3>
+              <p>
+                This MVP tracks EMS intake, alert activity, and incoming arrivals in a single browser-based
+                workspace.
+              </p>
+            </div>
+            <div class="hero-badges" id="dashboardBadges"></div>
+          </div>
+
+          <div class="card-grid three-up">
+            <section class="panel-card">
+              <h3>Recent Alerts</h3>
+              <div id="recentAlerts" class="stack-list"></div>
+            </section>
+            <section class="panel-card">
+              <h3>Incoming Patients</h3>
+              <div id="recentPatients" class="stack-list"></div>
+            </section>
+            <section class="panel-card">
+              <h3>Routing Summary</h3>
+              <div id="routingSummary" class="stack-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-intake">
+          <div class="card-grid two-up">
+            <section class="panel-card">
+              <h3>New EMS Intake</h3>
+              <form id="intakeForm" class="form-grid">
+                <label>
+                  Unit / Agency
+                  <input name="unitName" required />
+                </label>
+                <label>
+                  ETA (minutes)
+                  <input name="etaMinutes" type="number" min="0" required />
+                </label>
+                <label>
+                  Patient Alias
+                  <input name="patientAlias" required />
+                </label>
+                <label>
+                  Chief Complaint
+                  <input name="complaint" required />
+                </label>
+                <label>
+                  Acuity
+                  <select name="acuity">
+                    <option>High</option>
+                    <option selected>Moderate</option>
+                    <option>Low</option>
+                  </select>
+                </label>
+                <label>
+                  Suggested Alert
+                  <select name="alertType"></select>
+                </label>
+                <label class="full-width">
+                  Notes
+                  <textarea name="notes" rows="4"></textarea>
+                </label>
+                <button type="submit" class="primary-button">Save Intake</button>
+              </form>
+            </section>
+
+            <section class="panel-card">
+              <h3>Latest Intake Entries</h3>
+              <div id="intakeList" class="stack-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-alerts">
+          <div class="card-grid two-up">
+            <section class="panel-card">
+              <h3>Create Alert</h3>
+              <form id="alertForm" class="form-grid">
+                <label>
+                  Alert Type
+                  <select name="type"></select>
+                </label>
+                <label>
+                  Patient Alias
+                  <input name="patientAlias" required />
+                </label>
+                <label>
+                  Severity
+                  <select name="severity">
+                    <option>Critical</option>
+                    <option selected>High</option>
+                    <option>Moderate</option>
+                  </select>
+                </label>
+                <label>
+                  Destination
+                  <select name="destination"></select>
+                </label>
+                <label class="full-width">
+                  Alert Notes
+                  <textarea name="notes" rows="4"></textarea>
+                </label>
+                <button type="submit" class="primary-button">Launch Alert</button>
+              </form>
+            </section>
+
+            <section class="panel-card">
+              <h3>Active Alerts</h3>
+              <div id="alertList" class="stack-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-board">
+          <div class="card-grid two-up">
+            <section class="panel-card">
+              <h3>Incoming Arrival Board</h3>
+              <div id="boardList" class="board-grid"></div>
+            </section>
+
+            <section class="panel-card">
+              <h3>Patient Detail</h3>
+              <div id="patientDetail" class="detail-panel"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-admin">
+          <div class="card-grid three-up">
+            <section class="panel-card">
+              <h3>Alert Templates</h3>
+              <form id="templateForm" class="form-grid compact-form">
+                <label>
+                  Name
+                  <input name="name" required />
+                </label>
+                <label>
+                  Category
+                  <input name="category" required />
+                </label>
+                <label>
+                  Default Destination
+                  <input name="destination" required />
+                </label>
+                <button type="submit" class="primary-button">Add Template</button>
+              </form>
+              <div id="templateList" class="stack-list admin-list"></div>
+            </section>
+
+            <section class="panel-card">
+              <h3>Routing Rules</h3>
+              <form id="routingForm" class="form-grid compact-form">
+                <label>
+                  Route Name
+                  <input name="name" required />
+                </label>
+                <label>
+                  Channel
+                  <input name="channel" required />
+                </label>
+                <label>
+                  Destination
+                  <input name="destination" required />
+                </label>
+                <button type="submit" class="primary-button">Add Route</button>
+              </form>
+              <div id="routeList" class="stack-list admin-list"></div>
+            </section>
+
+            <section class="panel-card">
+              <h3>Role Permissions</h3>
+              <form id="roleForm" class="form-grid compact-form">
+                <label>
+                  Role Name
+                  <input name="name" required />
+                </label>
+                <label class="full-width">
+                  Permissions
+                  <input name="permissions" placeholder="alert.launch, routing.view" required />
+                </label>
+                <button type="submit" class="primary-button">Add Role</button>
+              </form>
+              <div id="roleList" class="stack-list admin-list"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
