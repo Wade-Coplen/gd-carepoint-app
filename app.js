@@ -1,4 +1,50 @@
 const STORAGE_KEY = "edaware-app-state";
+const SESSION_KEY = "edaware-app-session";
+
+const demoUsers = [
+  {
+    id: "user-clerk",
+    email: "clerk@edaware.app",
+    password: "demo123",
+    name: "Dana Clerk",
+    role: "ED Clerk",
+    permissions: ["dashboard.view", "intake.create", "alert.view", "board.view"],
+  },
+  {
+    id: "user-charge",
+    email: "charge@edaware.app",
+    password: "demo123",
+    name: "Morgan Charge",
+    role: "Charge Nurse",
+    permissions: ["dashboard.view", "intake.create", "alert.view", "alert.launch", "alert.acknowledge", "board.manage"],
+  },
+  {
+    id: "user-admin",
+    email: "admin@edaware.app",
+    password: "demo123",
+    name: "Alex Admin",
+    role: "Site Admin",
+    permissions: [
+      "dashboard.view",
+      "intake.create",
+      "alert.view",
+      "alert.launch",
+      "alert.acknowledge",
+      "board.manage",
+      "template.manage",
+      "routing.manage",
+      "roles.manage",
+    ],
+  },
+  {
+    id: "user-qa",
+    email: "qa@edaware.app",
+    password: "demo123",
+    name: "Riley QA",
+    role: "QA Reviewer",
+    permissions: ["dashboard.view", "alert.view", "board.view"],
+  },
+];
 
 const defaultState = {
   selectedPatientId: null,
@@ -43,7 +89,116 @@ const defaultState = {
   ],
 };
 
+const viewRequirements = {
+  home: "dashboard.view",
+  dashboard: "dashboard.view",
+  intake: "intake.create",
+  alerts: "alert.view",
+  board: "board.view",
+  admin: "template.manage",
+};
+
+const homeConfigs = {
+  "ED Clerk": {
+    headline: "Start with intake, radio traffic, and incoming arrivals.",
+    summary: "Your landing view prioritizes the next patient details, incoming communications, and the intake work that keeps the board current.",
+    badges: [
+      { label: "Open intake", value: "EMS" },
+      { label: "Tracked arrivals", value: () => state.intakes.length },
+      { label: "Visible alerts", value: () => state.alerts.length },
+    ],
+    actions: [
+      "Capture pre-arrival details for the next incoming unit.",
+      "Confirm complaint, ETA, and suggested alert before handoff.",
+      "Escalate to operational staff when incoming details change.",
+    ],
+    focus: [
+      "Reduce intake friction and keep arrival data current.",
+      "Keep unit, complaint, and ETA visible for the receiving team.",
+      "Use the board as the live source of truth for incoming patients.",
+    ],
+    watch: [
+      "Units with rapidly changing ETA or complaint details.",
+      "Patients without a suggested alert despite high acuity.",
+      "Any intake that may require charge nurse review.",
+    ],
+  },
+  "Charge Nurse": {
+    headline: "Start with active alerts, escalations, and the incoming board.",
+    summary: "Your landing view surfaces what needs operational attention first so you can coordinate staff, teams, and readiness before arrival.",
+    badges: [
+      { label: "Active alerts", value: () => state.alerts.filter((alert) => alert.status === "Active").length },
+      { label: "Incoming board", value: () => state.intakes.length },
+      { label: "Priority role", value: "Ops" },
+    ],
+    actions: [
+      "Review active alerts and acknowledge anything awaiting operational response.",
+      "Watch the incoming board for high-acuity patients and staffing needs.",
+      "Coordinate downstream team readiness before arrival.",
+    ],
+    focus: [
+      "Manage escalation flow without losing sight of arrivals.",
+      "Keep alerts, teams, and arrivals synchronized in real time.",
+      "Use the board and alert views as the operational command surface.",
+    ],
+    watch: [
+      "High-acuity arrivals without confirmed team activation.",
+      "Alerts that remain active without acknowledgment.",
+      "Patients whose intake details suggest workflow escalation.",
+    ],
+  },
+  "Site Admin": {
+    headline: "Start with system configuration, routing health, and admin readiness.",
+    summary: "Your landing view focuses on the operational controls that keep EDAware safe, consistent, and manageable across the site.",
+    badges: [
+      { label: "Templates", value: () => state.templates.length },
+      { label: "Routes", value: () => state.routes.length },
+      { label: "Roles", value: () => state.roles.length },
+    ],
+    actions: [
+      "Review routing, templates, and role coverage before operational changes go live.",
+      "Check whether alert logic and destinations still match current workflow.",
+      "Use the admin area as the control center for structured flexibility.",
+    ],
+    focus: [
+      "Keep configuration visible, reusable, and safe to change.",
+      "Reduce drift between local workflow needs and core platform structure.",
+      "Treat admin changes as operationally sensitive actions.",
+    ],
+    watch: [
+      "Template growth that creates duplication instead of reuse.",
+      "Routing changes that could affect after-hours behavior.",
+      "Permission sets that are broader than they need to be.",
+    ],
+  },
+  "QA Reviewer": {
+    headline: "Start with review queues, recordings, and operational follow-up.",
+    summary: "Your landing view prioritizes the cases and alerts that need review so you can move quickly from event to audit trail.",
+    badges: [
+      { label: "Review queue", value: () => state.alerts.length },
+      { label: "Acknowledged", value: () => state.alerts.filter((alert) => alert.status === "Acknowledged").length },
+      { label: "Role", value: "QA" },
+    ],
+    actions: [
+      "Review alerts and handoff details that may need quality follow-up.",
+      "Use patient detail and alert history as the starting point for QA review.",
+      "Track issues that suggest workflow gaps or training needs.",
+    ],
+    focus: [
+      "Keep recordings, alerts, and event detail aligned for later review.",
+      "Look for repeated friction in intake, routing, and alert acknowledgment.",
+      "Turn operational review into usable product and process insight.",
+    ],
+    watch: [
+      "Alerts with unusual timing, escalation, or acknowledgment patterns.",
+      "High-acuity arrivals with incomplete notes or unclear handoff detail.",
+      "Operational edge cases that should feed back into product design.",
+    ],
+  },
+};
+
 let state = loadState();
+let currentUser = loadSession();
 
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -64,13 +219,25 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function formatTime(value) {
-  return new Date(value).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+function loadSession() {
+  const saved = sessionStorage.getItem(SESSION_KEY);
+  if (!saved) return null;
+
+  try {
+    const parsed = JSON.parse(saved);
+    return demoUsers.find((user) => user.id === parsed.id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(user) {
+  if (!user) {
+    sessionStorage.removeItem(SESSION_KEY);
+    return;
+  }
+
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: user.id }));
 }
 
 function escapeHtml(value) {
@@ -80,6 +247,29 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function formatTime(value) {
+  return new Date(value).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function hasPermission(permission) {
+  return Boolean(currentUser?.permissions.includes(permission));
+}
+
+function canAccessView(viewName) {
+  const permission = viewRequirements[viewName];
+  return permission ? hasPermission(permission) : false;
+}
+
+function firstAllowedView() {
+  const preferredOrder = ["home", "dashboard", "intake", "alerts", "board", "admin"];
+  return preferredOrder.find((viewName) => canAccessView(viewName)) ?? "dashboard";
 }
 
 function renderList(containerId, items, renderer) {
@@ -142,7 +332,7 @@ function renderSnapshot() {
   document.getElementById("dashboardBadges").innerHTML = `
     <div class="badge"><span class="eyebrow">Active alerts</span><strong>${state.alerts.filter((a) => a.status === "Active").length}</strong></div>
     <div class="badge"><span class="eyebrow">Incoming ETA</span><strong>${Math.min(...state.intakes.map((i) => Number(i.etaMinutes)), 0) || 0}m</strong></div>
-    <div class="badge"><span class="eyebrow">Admin roles</span><strong>${state.roles.length}</strong></div>
+    <div class="badge"><span class="eyebrow">Signed in role</span><strong>${escapeHtml(currentUser?.role ?? "None")}</strong></div>
   `;
 }
 
@@ -186,6 +376,38 @@ function renderDashboard() {
   `);
 }
 
+function renderHome() {
+  const config = homeConfigs[currentUser?.role] ?? homeConfigs["Charge Nurse"];
+
+  document.getElementById("homeHeadline").textContent = config.headline;
+  document.getElementById("homeSummary").textContent = config.summary;
+
+  document.getElementById("homeBadges").innerHTML = config.badges
+    .map((badge) => {
+      const value = typeof badge.value === "function" ? badge.value() : badge.value;
+      return `<div class="badge"><span class="eyebrow">${escapeHtml(badge.label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+    })
+    .join("");
+
+  renderList("homeActions", config.actions, (item) => `
+    <article class="list-item action-card">
+      <p>${escapeHtml(item)}</p>
+    </article>
+  `);
+
+  renderList("homeFocus", config.focus, (item) => `
+    <article class="list-item">
+      <p>${escapeHtml(item)}</p>
+    </article>
+  `);
+
+  renderList("homeWatch", config.watch, (item) => `
+    <article class="list-item">
+      <p>${escapeHtml(item)}</p>
+    </article>
+  `);
+}
+
 function renderIntakes() {
   renderList("intakeList", [...state.intakes].reverse(), (intake) => `
     <article class="list-item">
@@ -215,13 +437,35 @@ function renderAlerts() {
         <span class="chip warn">${escapeHtml(alert.severity)}</span>
         <span class="chip">${formatTime(alert.createdAt)}</span>
         ${
-          alert.status === "Active"
+          alert.status === "Active" && hasPermission("alert.acknowledge")
             ? `<button class="ghost-button js-ack-alert" data-alert-id="${escapeHtml(alert.id)}">Acknowledge</button>`
             : ""
         }
       </div>
     </article>
   `);
+
+  const alertForm = document.getElementById("alertForm");
+  const lockedNote = document.getElementById("alertLockedNote") ?? document.createElement("p");
+  lockedNote.id = "alertLockedNote";
+  lockedNote.className = "locked-note";
+
+  if (!hasPermission("alert.launch")) {
+    Array.from(alertForm.elements).forEach((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || element instanceof HTMLButtonElement) {
+        element.disabled = true;
+      }
+    });
+    lockedNote.textContent = "Your current role can review alerts but cannot launch new ones.";
+    alertForm.appendChild(lockedNote);
+  } else {
+    Array.from(alertForm.elements).forEach((element) => {
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || element instanceof HTMLButtonElement) {
+        element.disabled = false;
+      }
+    });
+    lockedNote.remove();
+  }
 }
 
 function renderBoard() {
@@ -311,7 +555,7 @@ function renderPatientDetail() {
                   </div>
                   <p>${escapeHtml(alert.notes || "No alert notes.")}</p>
                   ${
-                    alert.status === "Active"
+                    alert.status === "Active" && hasPermission("alert.acknowledge")
                       ? `<div class="detail-actions"><button class="ghost-button js-ack-alert" data-alert-id="${escapeHtml(
                           alert.id,
                         )}">Acknowledge Alert</button></div>`
@@ -358,8 +602,33 @@ function renderAdmin() {
   `);
 }
 
+function renderCurrentUser() {
+  const card = document.getElementById("currentUserCard");
+  if (!currentUser) {
+    card.innerHTML = "";
+    return;
+  }
+
+  card.innerHTML = `
+    <p><strong>${escapeHtml(currentUser.name)}</strong></p>
+    <p>${escapeHtml(currentUser.role)}</p>
+  `;
+}
+
+function renderNavigation() {
+  document.querySelectorAll(".nav-link").forEach((button) => {
+    const allowed = canAccessView(button.dataset.view);
+    button.hidden = !allowed;
+    button.disabled = !allowed;
+  });
+}
+
 function renderAll() {
+  if (!currentUser) return;
   refreshSelectOptions();
+  renderCurrentUser();
+  renderNavigation();
+  renderHome();
   renderSnapshot();
   renderDashboard();
   renderIntakes();
@@ -369,6 +638,10 @@ function renderAll() {
 }
 
 function activateView(viewName) {
+  if (!canAccessView(viewName)) {
+    viewName = firstAllowedView();
+  }
+
   document.querySelectorAll(".nav-link").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.view === viewName);
   });
@@ -381,13 +654,34 @@ function activateView(viewName) {
     document.querySelector(`.nav-link[data-view="${viewName}"]`)?.textContent ?? "Dashboard";
 }
 
-function attachNav() {
-  document.querySelectorAll(".nav-link").forEach((button) => {
-    button.addEventListener("click", () => activateView(button.dataset.view));
-  });
+function setAuthenticatedShell() {
+  document.body.classList.toggle("auth-required", !currentUser);
+  document.body.classList.toggle("app-ready", Boolean(currentUser));
+}
+
+function login(email, password) {
+  const matchedUser = demoUsers.find((user) => user.email === email.trim().toLowerCase() && user.password === password);
+  if (!matchedUser) return false;
+
+  currentUser = matchedUser;
+  saveSession(currentUser);
+  setAuthenticatedShell();
+  renderAll();
+  activateView(firstAllowedView());
+  return true;
+}
+
+function logout() {
+  currentUser = null;
+  saveSession(null);
+  setAuthenticatedShell();
+  document.getElementById("loginForm").reset();
+  document.getElementById("loginError").hidden = true;
 }
 
 function acknowledgeAlert(alertId) {
+  if (!hasPermission("alert.acknowledge")) return;
+
   const alert = state.alerts.find((entry) => entry.id === alertId);
   if (!alert) return;
 
@@ -395,6 +689,96 @@ function acknowledgeAlert(alertId) {
   alert.acknowledgedAt = new Date().toISOString();
   saveState();
   renderAll();
+}
+
+function collectFormEntries(form) {
+  const formData = new FormData(form);
+  return Object.fromEntries(formData.entries());
+}
+
+function attachNav() {
+  document.querySelectorAll(".nav-link").forEach((button) => {
+    button.addEventListener("click", () => activateView(button.dataset.view));
+  });
+}
+
+function attachForms() {
+  document.getElementById("loginForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const entry = collectFormEntries(event.currentTarget);
+    const ok = login(entry.email, entry.password);
+    document.getElementById("loginError").hidden = ok;
+  });
+
+  document.getElementById("intakeForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!hasPermission("intake.create")) return;
+
+    const entry = collectFormEntries(event.currentTarget);
+    state.intakes.push({
+      id: crypto.randomUUID(),
+      ...entry,
+      createdAt: new Date().toISOString(),
+    });
+    saveState();
+    renderAll();
+    event.currentTarget.reset();
+    refreshSelectOptions();
+  });
+
+  document.getElementById("alertForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!hasPermission("alert.launch")) return;
+
+    const entry = collectFormEntries(event.currentTarget);
+    state.alerts.push({
+      id: crypto.randomUUID(),
+      ...entry,
+      status: "Active",
+      createdAt: new Date().toISOString(),
+    });
+    saveState();
+    renderAll();
+    event.currentTarget.reset();
+    refreshSelectOptions();
+  });
+
+  document.getElementById("templateForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!hasPermission("template.manage")) return;
+
+    const entry = collectFormEntries(event.currentTarget);
+    state.templates.push({ id: crypto.randomUUID(), ...entry });
+    saveState();
+    renderAll();
+    event.currentTarget.reset();
+  });
+
+  document.getElementById("routingForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!hasPermission("routing.manage")) return;
+
+    const entry = collectFormEntries(event.currentTarget);
+    state.routes.push({ id: crypto.randomUUID(), ...entry });
+    saveState();
+    renderAll();
+    event.currentTarget.reset();
+  });
+
+  document.getElementById("roleForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!hasPermission("roles.manage")) return;
+
+    const entry = collectFormEntries(event.currentTarget);
+    state.roles.push({
+      id: crypto.randomUUID(),
+      name: entry.name,
+      permissions: entry.permissions.split(",").map((permission) => permission.trim()).filter(Boolean),
+    });
+    saveState();
+    renderAll();
+    event.currentTarget.reset();
+  });
 }
 
 function attachInteractiveLists() {
@@ -417,90 +801,36 @@ function attachInteractiveLists() {
   });
 }
 
-function collectFormEntries(form) {
-  const formData = new FormData(form);
-  return Object.fromEntries(formData.entries());
-}
-
-function attachForms() {
-  document.getElementById("intakeForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const entry = collectFormEntries(event.currentTarget);
-    state.intakes.push({
-      id: crypto.randomUUID(),
-      ...entry,
-      createdAt: new Date().toISOString(),
-    });
-    saveState();
-    renderAll();
-    event.currentTarget.reset();
-    refreshSelectOptions();
-  });
-
-  document.getElementById("alertForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const entry = collectFormEntries(event.currentTarget);
-    state.alerts.push({
-      id: crypto.randomUUID(),
-      ...entry,
-      status: "Active",
-      createdAt: new Date().toISOString(),
-    });
-    saveState();
-    renderAll();
-    event.currentTarget.reset();
-    refreshSelectOptions();
-  });
-
-  document.getElementById("templateForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const entry = collectFormEntries(event.currentTarget);
-    state.templates.push({ id: crypto.randomUUID(), ...entry });
-    saveState();
-    renderAll();
-    event.currentTarget.reset();
-  });
-
-  document.getElementById("routingForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const entry = collectFormEntries(event.currentTarget);
-    state.routes.push({ id: crypto.randomUUID(), ...entry });
-    saveState();
-    renderAll();
-    event.currentTarget.reset();
-  });
-
-  document.getElementById("roleForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const entry = collectFormEntries(event.currentTarget);
-    state.roles.push({
-      id: crypto.randomUUID(),
-      name: entry.name,
-      permissions: entry.permissions.split(",").map((permission) => permission.trim()).filter(Boolean),
-    });
-    saveState();
-    renderAll();
-    event.currentTarget.reset();
-  });
-}
-
 function attachUtilityActions() {
   document.getElementById("seedDemoData").addEventListener("click", () => {
     state = structuredClone(defaultState);
     saveState();
     renderAll();
+    activateView(firstAllowedView());
   });
 
   document.getElementById("clearData").addEventListener("click", () => {
     localStorage.removeItem(STORAGE_KEY);
     state = structuredClone(defaultState);
+    saveState();
     renderAll();
+    activateView(firstAllowedView());
   });
+
+  document.getElementById("logoutButton").addEventListener("click", logout);
 }
 
-attachNav();
-attachForms();
-attachUtilityActions();
-attachInteractiveLists();
-renderAll();
-activateView("dashboard");
+function bootstrap() {
+  attachNav();
+  attachForms();
+  attachInteractiveLists();
+  attachUtilityActions();
+  setAuthenticatedShell();
+
+  if (currentUser) {
+    renderAll();
+    activateView(firstAllowedView());
+  }
+}
+
+bootstrap();

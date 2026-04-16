@@ -7,6 +7,64 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <section id="authGate" class="auth-shell">
+      <div class="auth-card">
+        <p class="eyebrow">Prototype Sign-In</p>
+        <h1>EDAware Access</h1>
+        <p class="auth-copy">
+          This is a mock authentication flow for role and workflow testing. It is not production security.
+        </p>
+
+        <form id="loginForm" class="auth-form">
+          <label>
+            Email
+            <input name="email" type="email" required />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" required />
+          </label>
+          <button type="submit" class="primary-button">Sign In</button>
+        </form>
+
+        <p id="loginError" class="auth-error" hidden>Invalid credentials. Try one of the demo users below.</p>
+
+        <section class="auth-demo">
+          <h2>Demo Users</h2>
+          <div class="stack-list">
+            <article class="list-item">
+              <header>
+                <h4>ED Clerk</h4>
+                <span class="chip">Clerk access</span>
+              </header>
+              <p>`clerk@edaware.app` / `demo123`</p>
+            </article>
+            <article class="list-item">
+              <header>
+                <h4>Charge Nurse</h4>
+                <span class="chip warn">Operational access</span>
+              </header>
+              <p>`charge@edaware.app` / `demo123`</p>
+            </article>
+            <article class="list-item">
+              <header>
+                <h4>Site Admin</h4>
+                <span class="chip danger">Admin access</span>
+              </header>
+              <p>`admin@edaware.app` / `demo123`</p>
+            </article>
+            <article class="list-item">
+              <header>
+                <h4>QA Reviewer</h4>
+                <span class="chip">Review access</span>
+              </header>
+              <p>`qa@edaware.app` / `demo123`</p>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
@@ -16,7 +74,8 @@
         </div>
 
         <nav class="nav">
-          <button class="nav-link is-active" data-view="dashboard">Dashboard</button>
+          <button class="nav-link is-active" data-view="home">Home</button>
+          <button class="nav-link" data-view="dashboard">Dashboard</button>
           <button class="nav-link" data-view="intake">EMS Intake</button>
           <button class="nav-link" data-view="alerts">Alerts</button>
           <button class="nav-link" data-view="board">Arrival Board</button>
@@ -33,13 +92,43 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">Prototype workspace</p>
-            <h2 id="viewTitle">Dashboard</h2>
+            <h2 id="viewTitle">Home</h2>
           </div>
           <div class="topbar-actions">
+            <div id="currentUserCard" class="user-card"></div>
             <button id="seedDemoData" class="ghost-button">Reset Demo Data</button>
             <button id="clearData" class="danger-button">Clear Stored Data</button>
+            <button id="logoutButton" class="ghost-button">Logout</button>
           </div>
         </header>
+
+        <section class="view is-visible" id="view-home">
+          <div class="hero-card home-hero">
+            <div>
+              <p class="eyebrow">Role-Aware Start</p>
+              <h3 id="homeHeadline">Welcome to EDAware</h3>
+              <p id="homeSummary">
+                Your landing space should shift based on role, urgency, and the work that matters first.
+              </p>
+            </div>
+            <div class="hero-badges" id="homeBadges"></div>
+          </div>
+
+          <div class="card-grid three-up">
+            <section class="panel-card">
+              <h3>Priority Actions</h3>
+              <div id="homeActions" class="stack-list"></div>
+            </section>
+            <section class="panel-card">
+              <h3>Operational Focus</h3>
+              <div id="homeFocus" class="stack-list"></div>
+            </section>
+            <section class="panel-card">
+              <h3>Watch Items</h3>
+              <div id="homeWatch" class="stack-list"></div>
+            </section>
+          </div>
+        </section>
 
         <section class="view is-visible" id="view-dashboard">
           <div class="hero-card">
